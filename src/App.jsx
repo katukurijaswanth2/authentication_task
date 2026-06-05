@@ -1,122 +1,100 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect } from "react";
+import WelcomeScreen from "./authentication/WelcomeScreen";
+import LoginScreen from "./authentication/LoginScreen";
+import RegisterScreen from "./authentication/RegisterScreen";
+import AccountScreen from "./authentication/AccountScreen";
+import { getSession, saveSession, clearSession, getUsers, saveUsers } from "./utils/authHelpers";
+
+import "./App.css"; 
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [screen, setScreen] = useState("welcome");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const session = getSession();
+    if (session) {
+      setCurrentUser(session);
+      setScreen("account");
+    }
+  }, []);
+
+  const handleLogin = (email, password) => {
+    setError("");
+    const users = getUsers();
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+
+    if (!user) {
+      setError("Invalid email or password.");
+      return;
+    }
+
+    saveSession(user);
+    setCurrentUser(user);
+    setScreen("account");
+  };
+
+  const handleRegister = (form) => {
+    setError("");
+    const users = getUsers();
+
+    if (users.find(u => u.email.toLowerCase() === form.email.toLowerCase())) {
+      setError("An account with this email already exists.");
+      return;
+    }
+
+    const newUser = { ...form, avatar: null, id: Date.now().toString() };
+    saveUsers([...users, newUser]);
+    saveSession(newUser);
+    setCurrentUser(newUser);
+    setScreen("account");
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    setCurrentUser(null);
+    setScreen("welcome");
+    setError("");
+  };
+
+  const changeScreen = (s) => {
+    setError("");
+    setScreen(s);
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-shell">
+      <div className="phone">
+        {screen === "welcome" && (
+          <WelcomeScreen
+            onCreateAccount={() => changeScreen("register")}
+            onLogin={() => changeScreen("login")}
+          />
+        )}
 
-      <div className="ticks"></div>
+        {screen === "login" && (
+          <LoginScreen
+            onLogin={handleLogin}
+            onBack={() => changeScreen("welcome")}
+            error={error}
+          />
+        )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {screen === "register" && (
+          <RegisterScreen
+            onRegister={handleRegister}
+            onBack={() => changeScreen("welcome")}
+            error={error}
+          />
+        )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        {screen === "account" && currentUser && (
+          <AccountScreen user={currentUser} onLogout={handleLogout} />
+        )}
+      </div>
+    </div>
+  );
 }
 
-export default App
+export default App;
